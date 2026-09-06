@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>使用 go-musicfox 來聽 網易雲</title>
+<meta name="description" content="go-musicfox 是一個命令行的網易雲客戶端，這篇記錄基本使用、踩坑和自動化工具。" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" href="../../static/blog.css">
+<link rel="icon" type="image/png" href="../../static/favicon.png">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GG2TSWDQQK"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-GG2TSWDQQK');
+</script>
+</head>
+<body>
+<div id="preamble" class="status">
+<header class="site-header"><a class="site-title" href="/">Yu-Fu Fu</a><nav class="site-nav"><a href="/blog/zh-Hant/" data-blog-link data-simplified-href="/blog/zh-Hant/?script=Hans">Blog</a><label class="language-picker ignore-opencc" data-zh-toggle><span class="language-picker-icon" aria-hidden="true">A文</span><select class="language-select" aria-label="Select language" data-zh-select><option value="/blog/">English</option><option value="traditional" selected>繁體中文</option><option value="simplified">简体中文</option></select></label></nav></header>
+</div>
+<div id="content" class="content">
+<header>
+<h1 class="title">使用 go-musicfox 來聽 網易雲</h1>
+</header><h2 id=go-musicfox>go-musicfox</h2><p><a href="https://github.com/go-musicfox/go-musicfox" target="_blank" rel="external nofollow noopener noreferrer">go-musicfox</a> 是一個命令行的網易雲客戶端，支援不少功能例如 <a href="https://www.last.fm/home" target="_blank" rel="external nofollow noopener noreferrer">last.fm</a> 上報。</p><figure><img src=https://github.com/go-musicfox/go-musicfox/raw/master/previews/main.png alt="Figure 1: go-musicfox 界面"><figcaption><p><span class=figure-number>Figure 1: </span>go-musicfox 界面</p></figcaption></figure><p>本文只做基本介紹，和我踩的一些坑 (還提了幾個 issue)，還有一些自動化工具撰寫。</p><p>詳細使用方法，請洽 GitHub。</p><h2 id=播放引擎選擇>播放引擎選擇</h2><p><code>go-musicfox</code> 支援 beep, mpd, osx 三種引擎。在本文撰寫時，我實際測試過後的結果。</p><ul><li>beep: 播放一首歌後 panic 。</li><li>osx: 歌詞會 delay，因為美國連到網易雲伺服器速度感人 (2MB/s)。</li><li>mpd: 最穩定，除了下面會提到的坑。</li></ul><h2 id=mpd-踩坑>mpd 踩坑</h2><p>網易雲對 flac 檔案， HTTP Header仍然使用 <code>audio/mpeg</code> ，導致 mpd 誤認為 mp3 而使用錯誤的解碼器。</p><details class=code-details style="padding:1em;background-color:#e5f5e5;border-radius:15px;color:hsl(157 75%);font-size:.9em;box-shadow:.05em .1em 5px .01em #00000057"><summary><strong><font face=Courier size=3 color=green>HTTP Header</font></strong></summary><div class=verse><p>HTTP/1.1 200 OK<br>Server: Tengine<br>Content-Type: audio/mpeg; charset=UTF-8<br>Content-Length: 62865627 Connection: keep-alive<br>Date: Mon, 12 Jun 2023 07:18:15 GMT<br></p></div></details><h3 id=解決辦法>解決辦法</h3><p>編譯 mpd 時，記得把 FFmpeg support開啟。如果你用 Homebrew 安裝，不用特別處理，FFmpeg 已經被編譯進去了。</p><p>如果你和我一樣使用 MacPorts，需要使用以下指令安裝來啟用 FFmpeg decoder。</p><div class=highlight id=id-1><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl>sudo port install mpd +ffmpeg</span></span></code></pre></td></tr></table></div></div><p>然後確定 decoder plugins 裡有 FFmpeg.</p><div class=highlight id=id-2><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl>mpd --version</span></span></code></pre></td></tr></table></div></div><h3 id=dot-mpd-mpd-dot-conf>~/.mpd/mpd.conf</h3><p>特別注意的是要停掉 mad，這樣就會 fallback 到 FFmpeg。</p><div class=highlight id=id-3><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cfg data-lang=cfg><span class=line><span class=cl><span class=c1># musicfox 不會用到，任意設定即可。</span>
+</span></span><span class=line><span class=cl><span class=na>music_directory &#34;~/Music&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>playlist_directory &#34;~/.mpd/playlists&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>db_file &#34;~/.mpd/mpd.db&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>log_file &#34;~/.mpd/mpd.log&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>pid_file &#34;~/.mpd/mpd.pid&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>state_file &#34;~/.mpd/mpdstate&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>bind_to_address &#34;~/.mpd/socket&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 音量平衡</span>
+</span></span><span class=line><span class=cl><span class=na>volume_normalization &#34;yes&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=na>audio_output {</span>
+</span></span><span class=line><span class=cl>    <span class=na>type &#34;osx&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=na>name &#34;My Mac Device&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=na>mixer_type &#34;software&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># wyy return Content-Type: audio/mpeg; for flac files!!</span>
+</span></span><span class=line><span class=cl><span class=c1># just disable mad and fallback to ffmpeg; and ffmpeg will do the correct job</span>
+</span></span><span class=line><span class=cl><span class=na>decoder {</span>
+</span></span><span class=line><span class=cl>        <span class=na>plugin &#34;mad&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=na>enabled &#34;no&#34;</span>
+</span></span><span class=line><span class=cl><span class=na>}</span></span></span></code></pre></td></tr></table></div></div><p>記得 <code>go-musicfox.ini</code> 要改成對應的值。</p><h2 id=遠程控制-musicfox>遠程控制 musicfox</h2><p>因為 musicfox 需要按鍵來控制，所以需要一個程式可以開啟 musicfox 並對他發送按鍵的事件。沒錯，就是你我天天用到的 <code>tmux</code> !</p><p>方法也很簡單，開啟一個 session (假設名字叫 musicfox)，然後 musicfox 在 session裡的第一個 window 且是第一個 pane. 就可以使用一下指令來發送空白鍵 (Space) 給 musicfox.</p><div class=highlight id=id-4><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl>tmux send-keys -t musicfox:1 Space</span></span></code></pre></td></tr></table></div></div><p>之後就能遠程控制 musicfox了~</p><h2 id=集成-emacs>集成 Emacs</h2><p>我個人是重度 Emacs 用戶，很大一段時間視窗都在 Emacs上，所以能從 Emacs裡控制 musicfox 對我來說很重要。當然不可能有現成的 Package，所以只能自己寫摟。</p><p>最後實現的方法是Emacs裡的 <a href="https://github.com/akermu/emacs-libvterm" target="_blank" rel="external nofollow noopener noreferrer">vterm</a> package.</p><p>方法和 tmux 差不多，不過是改用 <code>(vterm-insert)</code> 來發送按鍵。不多做介紹，以下貼 code，歡迎交流討論。</p><h3 id=init-musicfox-dot-el>init-musicfox.el</h3><div class=highlight id=id-5><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-emacs-lisp data-lang=emacs-lisp><span class=line><span class=cl><span class=p>(</span><span class=nb>require</span> <span class=ss>&#39;vterm</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defvar</span> <span class=nv>musicfox-mode-map</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>let</span> <span class=p>((</span><span class=nv>map</span> <span class=p>(</span><span class=nf>make-sparse-keymap</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>    <span class=p>(</span><span class=nf>define-key</span> <span class=nv>map</span> <span class=s>&#34;]&#34;</span> <span class=nf>#&#39;</span><span class=nv>musicfox-next</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=nv>map</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;MusicFox Keymap&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defvar</span> <span class=nv>musicfox-buffer-name</span> <span class=s>&#34;*MusicFox*&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>define-minor-mode</span> <span class=nv>musicfox-mode</span> <span class=s>&#34;MusicFox&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>let*</span> <span class=p>((</span><span class=nv>vterm-buffer-name-string</span> <span class=no>nil</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>         <span class=p>(</span><span class=nv>vterm-buffer-name</span> <span class=nv>musicfox-buffer-name</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>         <span class=p>(</span><span class=nv>b</span> <span class=p>(</span><span class=nf>get-buffer</span> <span class=nv>vterm-buffer-name</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>    <span class=p>(</span><span class=nb>if</span> <span class=nv>b</span>
+</span></span><span class=line><span class=cl>        <span class=p>(</span><span class=nb>if</span> <span class=p>(</span><span class=nf>eq</span> <span class=p>(</span><span class=nf>current-buffer</span><span class=p>)</span> <span class=nv>b</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>(</span><span class=nv>bury-buffer</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>(</span><span class=nv>pop-to-buffer-same-window</span> <span class=nv>b</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nv>vterm</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nb>setq-local</span> <span class=nv>vterm-buffer-name</span> <span class=nv>vterm-buffer-name</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nb>setq-local</span> <span class=nv>vterm-buffer-name-string</span> <span class=nv>vterm-buffer-name-string</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nv>local-unset-key</span> <span class=p>(</span><span class=nv>kbd</span> <span class=s>&#34;&lt;f11&gt;&#34;</span><span class=p>))</span> <span class=c1>;; should match the key in init.el</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nv>local-unset-key</span> <span class=p>(</span><span class=nv>kbd</span> <span class=s>&#34;C-SPC&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nv>local-set-key</span> <span class=s>&#34;]&#34;</span> <span class=nf>#&#39;</span><span class=nv>musicfox-next</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nv>vterm-insert</span> <span class=s>&#34;musicfox\n&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=p>(</span><span class=nv>musicfox-mode</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>    <span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defmacro</span> <span class=nv>with-musicfox</span> <span class=p>(</span><span class=nv>body</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=o>`</span><span class=p>(</span><span class=nb>with-current-buffer</span> <span class=nv>musicfox-buffer-name</span>
+</span></span><span class=line><span class=cl>                        <span class=o>,</span><span class=nv>body</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox-next</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>with-musicfox</span>
+</span></span><span class=line><span class=cl>   <span class=p>(</span><span class=nv>vterm-insert</span> <span class=s>&#34;]&#34;</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox-prev</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>with-musicfox</span>
+</span></span><span class=line><span class=cl>   <span class=p>(</span><span class=nv>vterm-insert</span> <span class=s>&#34;[&#34;</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox-playpause</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>with-musicfox</span>
+</span></span><span class=line><span class=cl>   <span class=p>(</span><span class=nv>vterm-insert</span> <span class=p>(</span><span class=nv>kbd</span> <span class=s>&#34;SPC&#34;</span><span class=p>))))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox-favorite</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>with-musicfox</span>
+</span></span><span class=line><span class=cl>   <span class=p>(</span><span class=nv>vterm-insert</span> <span class=p>(</span><span class=nv>kbd</span> <span class=s>&#34;,&#34;</span><span class=p>))))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox-download</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>with-musicfox</span>
+</span></span><span class=line><span class=cl>   <span class=p>(</span><span class=nv>vterm-insert</span> <span class=p>(</span><span class=nv>kbd</span> <span class=s>&#34;d&#34;</span><span class=p>))))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox-volumn-decrease</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>with-musicfox</span>
+</span></span><span class=line><span class=cl>   <span class=p>(</span><span class=nv>vterm-insert</span> <span class=p>(</span><span class=nv>kbd</span> <span class=s>&#34;-&#34;</span><span class=p>))))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musicfox-volumn-increase</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>with-musicfox</span>
+</span></span><span class=line><span class=cl>   <span class=p>(</span><span class=nv>vterm-insert</span> <span class=p>(</span><span class=nv>kbd</span> <span class=s>&#34;=&#34;</span><span class=p>))))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nv>spacemacs/declare-prefix</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;am&#34;</span> <span class=s>&#34;music&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>;; TODO popup log file with read-only</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musixfox-popup-log</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>defun</span> <span class=nv>musixfox-config</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nb>interactive</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>(</span><span class=nv>find-file</span> <span class=s>&#34;~/Library/Application Support/go-musicfox/go-musicfox.ini&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>;; replicate keybindings and some custom aliases</span>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nv>spacemacs/set-leader-keys</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;amn&#34;</span> <span class=ss>&#39;musicfox-next</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;am]&#34;</span> <span class=ss>&#39;musicfox-next</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;amb&#34;</span> <span class=ss>&#39;musicfox-prev</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;am[&#34;</span> <span class=ss>&#39;musicfox-prev</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;amp&#34;</span> <span class=ss>&#39;musicfox-playpause</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;am SPC&#34;</span> <span class=ss>&#39;musicfox-playpause</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;amf&#34;</span> <span class=ss>&#39;musicfox-favorite</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;am,&#34;</span> <span class=ss>&#39;musicfox-favorite</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;amd&#34;</span> <span class=ss>&#39;musicfox-download</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;am-&#34;</span> <span class=ss>&#39;musicfox-volumn-decrease</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;am=&#34;</span> <span class=ss>&#39;musicfox-volumn-increase</span>
+</span></span><span class=line><span class=cl>  <span class=s>&#34;aml&#34;</span> <span class=ss>&#39;musixfox-popup-log</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>(</span><span class=nb>provide</span> <span class=ss>&#39;init-musicfox</span><span class=p>)</span></span></span></code></pre></td></tr></table></div></div><p>之後 <code>(require 'init-musicfox)</code> 然後 <code>M-x musicfox</code> 。</p><p>裡面用到 <code>spacemacs/set-leader-keys</code> 是 Spacemacs 專屬函數，其他用戶可以自行綁定其他熱鍵。</p><h2 id=hammerspoon-實現全局熱鍵控制-musicfox-和-itunes--music>Hammerspoon 實現全局熱鍵控制 musicfox 和 iTunes (Music)</h2><p><a href="https://www.hammerspoon.org/" target="_blank" rel="external nofollow noopener noreferrer">Hammerspoon</a> 是一款 macOS 強大的自動化工具，基本上<a href="https://www.hammerspoon.org/docs/index.html" target="_blank" rel="external nofollow noopener noreferrer">大部分功能都有</a>。</p><p>除了 musicfox，我主要使用 macOS 預設的Music。基本我使用網易雲只是把常聽的音樂下載，然後導入到 Music之後就不用了.</p><h3 id=musicfox-cli>musicfox-cli</h3><p>使用 emasclient 直接調用 Emacs對應的 musicfox 指令 。使用 tmux方法的可以自行撰寫類似的腳本。</p><div class=highlight id=id-6><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl><span class=cp>#!/bin/bash -e
+</span></span></span><span class=line><span class=cl><span class=cp></span>/usr/local/bin/emacsclient -e <span class=s2>&#34;(musicfox-</span><span class=nv>$1</span><span class=s2>)&#34;</span> &gt; /dev/null</span></span></code></pre></td></tr></table></div></div><p>之後可以使用 <code>musicfox-cli playpause</code> 之類的指令來控制。</p><h3 id=musicfox-dot-lua>musicfox.lua</h3><p>這個檔案是 <code>musicfox-cli</code> 的 wrapper，使用 <code>hs.tasks</code> 調用。</p><div class=highlight id=id-7><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-lua data-lang=lua><span class=line><span class=cl><span class=kd>local</span> <span class=n>module</span> <span class=o>=</span> <span class=p>{}</span>
+</span></span><span class=line><span class=cl><span class=n>CLI_PATH</span> <span class=o>=</span> <span class=s1>&#39;/Users/fuyu0425/bin/musicfox-cli&#39;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>function</span> <span class=nf>callback</span><span class=p>(</span><span class=n>exitCode</span><span class=p>,</span> <span class=n>stdOut</span><span class=p>,</span> <span class=n>stdErr</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=c1>-- do something when the task is completed</span>
+</span></span><span class=line><span class=cl>  <span class=kr>if</span> <span class=n>exitCode</span> <span class=o>==</span> <span class=mi>0</span> <span class=kr>then</span>
+</span></span><span class=line><span class=cl>    <span class=n>print</span><span class=p>(</span><span class=s1>&#39;Task succeeded&#39;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>print</span><span class=p>(</span><span class=s1>&#39;Output:&#39;</span><span class=p>,</span> <span class=n>stdOut</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=kr>else</span>
+</span></span><span class=line><span class=cl>    <span class=n>print</span><span class=p>(</span><span class=s1>&#39;Task failed with exit code&#39;</span><span class=p>,</span> <span class=n>exitCode</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>print</span><span class=p>(</span><span class=s1>&#39;Error:&#39;</span><span class=p>,</span> <span class=n>stdErr</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=kr>end</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>function</span> <span class=nc>module</span><span class=p>.</span><span class=nf>playpause</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=n>hs.task</span><span class=p>.</span><span class=n>new</span><span class=p>(</span><span class=n>CLI_PATH</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>              <span class=kc>nil</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>              <span class=p>{</span><span class=s1>&#39;playpause&#39;</span><span class=p>}):</span><span class=n>start</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>function</span> <span class=nc>module</span><span class=p>.</span><span class=nf>next</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=n>hs.task</span><span class=p>.</span><span class=n>new</span><span class=p>(</span><span class=n>CLI_PATH</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>              <span class=kc>nil</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>              <span class=p>{</span><span class=s1>&#39;next&#39;</span><span class=p>}):</span><span class=n>start</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>function</span> <span class=nc>module</span><span class=p>.</span><span class=nf>prev</span> <span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=n>hs.task</span><span class=p>.</span><span class=n>new</span><span class=p>(</span><span class=n>CLI_PATH</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>              <span class=kc>nil</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>              <span class=p>{</span><span class=s1>&#39;prev&#39;</span><span class=p>}):</span><span class=n>start</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>return</span> <span class=n>module</span></span></span></code></pre></td></tr></table></div></div><h3 id=music-dot-lua>music.lua</h3><ol><li>建立一個 Menu bar toggle 來決定目前要控制 iTunes (Apple Music) 還是 musicfox.</li><li>綁定全局熱鍵來控制播放器。(Alt + Ctrl + n/b/p)</li></ol><div class=highlight id=id-8><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-lua data-lang=lua><span class=line><span class=cl><span class=n>musicfox</span> <span class=o>=</span> <span class=n>require</span><span class=p>(</span><span class=s1>&#39;musicfox&#39;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>ITUNES</span> <span class=o>=</span> <span class=s1>&#39;iTunes&#39;</span>
+</span></span><span class=line><span class=cl><span class=n>MUSICFOX</span> <span class=o>=</span> <span class=s1>&#39;MusicFox&#39;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>-- Choose your default value to be ITUNES or MUSICFOX</span>
+</span></span><span class=line><span class=cl><span class=c1>-- CURRENT_MUSIC_APP = ITUNES</span>
+</span></span><span class=line><span class=cl><span class=n>CURRENT_MUSIC_APP</span> <span class=o>=</span> <span class=n>MUSICFOX</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>musicAppMenu</span> <span class=o>=</span> <span class=n>hs.menubar</span><span class=p>.</span><span class=n>new</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>-- Define state</span>
+</span></span><span class=line><span class=cl><span class=n>state</span> <span class=o>=</span> <span class=n>CURRENT_MUSIC_APP</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>-- Function to toggle state</span>
+</span></span><span class=line><span class=cl><span class=kr>function</span> <span class=nf>toggleMusicAppState</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=kr>if</span> <span class=n>state</span> <span class=o>==</span> <span class=n>ITUNES</span> <span class=kr>then</span>
+</span></span><span class=line><span class=cl>    <span class=n>state</span> <span class=o>=</span> <span class=n>MUSICFOX</span>
+</span></span><span class=line><span class=cl>    <span class=n>CURRENT_MUSIC_APP</span> <span class=o>=</span> <span class=n>MUSICFOX</span>
+</span></span><span class=line><span class=cl>  <span class=kr>else</span>
+</span></span><span class=line><span class=cl>    <span class=n>state</span> <span class=o>=</span> <span class=n>ITUNES</span>
+</span></span><span class=line><span class=cl>    <span class=n>CURRENT_MUSIC_APP</span> <span class=o>=</span> <span class=n>ITUNES</span>
+</span></span><span class=line><span class=cl>  <span class=kr>end</span>
+</span></span><span class=line><span class=cl>  <span class=c1>-- Update the menu title</span>
+</span></span><span class=line><span class=cl>  <span class=n>musicAppMenu</span><span class=p>:</span><span class=n>setTitle</span><span class=p>(</span><span class=n>state</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>-- Set initial state</span>
+</span></span><span class=line><span class=cl><span class=n>musicAppMenu</span><span class=p>:</span><span class=n>setTitle</span><span class=p>(</span><span class=n>state</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>-- Set the menu to be our toggle function</span>
+</span></span><span class=line><span class=cl><span class=n>musicAppMenu</span><span class=p>:</span><span class=n>setClickCallback</span><span class=p>(</span><span class=n>toggleMusicAppState</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>hs.hotkey</span><span class=p>.</span><span class=n>bind</span><span class=p>({</span> <span class=s2>&#34;alt&#34;</span><span class=p>,</span> <span class=s2>&#34;ctrl&#34;</span> <span class=p>},</span> <span class=s2>&#34;p&#34;</span><span class=p>,</span> <span class=kc>nil</span><span class=p>,</span> <span class=kr>function</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>if</span> <span class=n>CURRENT_MUSIC_APP</span> <span class=o>==</span> <span class=n>ITUNES</span> <span class=kr>then</span>
+</span></span><span class=line><span class=cl>      <span class=n>hs.itunes</span><span class=p>.</span><span class=n>playpause</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>else</span>
+</span></span><span class=line><span class=cl>      <span class=n>musicfox.playpause</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>end</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>hs.hotkey</span><span class=p>.</span><span class=n>bind</span><span class=p>({</span> <span class=s2>&#34;alt&#34;</span><span class=p>,</span> <span class=s2>&#34;ctrl&#34;</span> <span class=p>},</span> <span class=s2>&#34;n&#34;</span><span class=p>,</span> <span class=kc>nil</span><span class=p>,</span> <span class=kr>function</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>if</span> <span class=n>CURRENT_MUSIC_APP</span> <span class=o>==</span> <span class=n>ITUNES</span> <span class=kr>then</span>
+</span></span><span class=line><span class=cl>      <span class=n>hs.itunes</span><span class=p>.</span><span class=n>next</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>else</span>
+</span></span><span class=line><span class=cl>      <span class=n>musicfox.next</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>end</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>hs.hotkey</span><span class=p>.</span><span class=n>bind</span><span class=p>({</span> <span class=s2>&#34;alt&#34;</span><span class=p>,</span> <span class=s2>&#34;ctrl&#34;</span> <span class=p>},</span> <span class=s2>&#34;b&#34;</span><span class=p>,</span> <span class=kc>nil</span><span class=p>,</span> <span class=kr>function</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>if</span> <span class=n>CURRENT_MUSIC_APP</span> <span class=o>==</span> <span class=n>ITUNES</span> <span class=kr>then</span>
+</span></span><span class=line><span class=cl>      <span class=n>hs.itunes</span><span class=p>.</span><span class=n>previous</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>else</span>
+</span></span><span class=line><span class=cl>      <span class=n>musicfox.prev</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=kr>end</span>
+</span></span><span class=line><span class=cl><span class=kr>end</span><span class=p>)</span></span></span></code></pre></td></tr></table></div></div><h4 id=效果>效果</h4><figure><img src="/blog/static/player-toggle.gif" alt="Figure 2: Menubar toggle"><figcaption><p><span class=figure-number>Figure 2: </span>Menubar toggle</p></figcaption></figure>
+</div>
+<div id="postamble" class="status">
+<footer class="site-footer"><a href="https://www.gnu.org/s/emacs/" aria-label="Made with Emacs"><img src="../../static/made-with-emacs.jpeg" width="150" height="44" alt="Made with Emacs"></a></footer>
+<script src="../../static/opencc-js.js"></script><script src="../../static/zh-toggle.js"></script>
+</div>
+</body>
+</html>

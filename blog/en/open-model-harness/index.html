@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Embrace Open Model and Open Harness</title>
+<meta name="description" content="Why I moved from Claude Code and Codex to oh-my-pi, the open harness." />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" href="../../static/blog.css">
+<link rel="icon" type="image/png" href="../../static/favicon.png">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GG2TSWDQQK"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-GG2TSWDQQK');
+</script>
+</head>
+<body>
+<div id="preamble" class="status">
+<header class="site-header"><a class="site-title" href="/">Yu-Fu Fu</a><nav class="site-nav"><a href="/blog/" data-blog-link data-simplified-href="/blog/zh-Hant/?script=Hans">Blog</a><label class="language-picker ignore-opencc"><span class="language-picker-icon" aria-hidden="true">A文</span><select class="language-select" aria-label="Select language" onchange="if (this.value) location=this.value"><option value="" selected>English</option><option value="/blog/zh-Hant/">繁體中文</option><option value="/blog/zh-Hant/?script=Hans">简体中文</option></select></label></nav></header>
+</div>
+<div id="content" class="content">
+<header>
+<h1 class="title">Embrace Open Model and Open Harness</h1>
+</header><p>
+I start with Claude Code, then Codex, and finally land on open harness.
+</p>
+<div id="outline-container-orgf8a10c1" class="outline-2">
+<h2 id="orgf8a10c1">Claude Code</h2>
+<div class="outline-text-2" id="text-orgf8a10c1">
+<p>
+Claude Code is so buggy and randomly freezes; Anthropic keeps randomly changing features; for example, the effort stuff, and the dark stuff around input cache and HTTP headers.
+</p>
+</div>
+</div>
+<div id="outline-container-org4dc7195" class="outline-2">
+<h2 id="org4dc7195">Codex</h2>
+<div class="outline-text-2" id="text-org4dc7195">
+<p>
+Codex was good before, like until July; but after catching up with Claude Code, they just show their true face! They keep nerfing the limits and use resets to disguise. They don&rsquo;t honor the previously mentioned banked resets, and deliberately align the reset timing to the next natural reset as advertisement and karma farming (for example, close to the last reset + 7 days or the expiration of banked resets). Just such a disgusting and shady business practice.
+</p>
+</div>
+</div>
+<div id="outline-container-org4d83681" class="outline-2">
+<h2 id="org4d83681">The Deal Breaker: Auto Resolve</h2>
+<div class="outline-text-2" id="text-org4d83681">
+<p>
+The final deal breaker for me is the newly added feature called auto resolve.
+There are already a lot of complaints after the feature was introduced, such as <a href="https://github.com/openai/codex/issues/28969">https://github.com/openai/codex/issues/28969</a>.
+It will automatically proceed with the first choice when users are prompted with questions, like in 60 seconds. When in plan mode or brainstorming, that autoresolve is just disruptive. To make it worse, the project will drift a lot when you are asked questions but you are not babysitting Codex. I think that&rsquo;s what OpenAI wants to achieve: let your projects become garbage and spend more tokens on guiding it back. All in all, DISGUSTING.
+</p>
+</div>
+</div>
+<div id="outline-container-org05ed5c5" class="outline-2">
+<h2 id="org05ed5c5">Pivot to Oh-My-Pi</h2>
+<div class="outline-text-2" id="text-org05ed5c5">
+<p>
+Therefore, I pivot to oh-my-pi, the battery-included pi. I really want to hack pi from scratch like I hacked my Emacs configuration (10k+ LoC Emacs Lisp). But I am not a TypeScript guy and don&rsquo;t have much capacity in life. So I decide to start with oh-my-pi to learn the ecosystem and, in one day, do my own fork with pi, if at that time the harness itself is still relevant.
+</p>
+</div>
+</div>
+<div id="outline-container-org9c877df" class="outline-2">
+<h2 id="org9c877df">Coding Plan</h2>
+<div class="outline-text-2" id="text-org9c877df">
+<p>
+For a coding plan, I tried OpenCode Go ($10/mo, and $5 in the first month) with DeepSeek V4 Flash and Pro. All in all, it can do a good job in the domain I am familiar with and doesn&rsquo;t cost too many tokens.
+</p>
+</div>
+</div>
+<div id="outline-container-org93b11e5" class="outline-2">
+<h2 id="org93b11e5">Conclusion</h2>
+<div class="outline-text-2" id="text-org93b11e5">
+<p>
+I know I will eventually settle on open harness as I did with Emacs, but the date is sooner than I originally thought. The world is changing so fast. Next plan is to get GPUs for local models so I don&rsquo;t even need to subscribe to any coding plans.
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<footer class="site-footer"><a href="https://www.gnu.org/s/emacs/" aria-label="Made with Emacs"><img src="../../static/made-with-emacs.jpeg" width="150" height="44" alt="Made with Emacs"></a></footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yu-Fu Fu</title>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-GG2TSWDQQK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-GG2TSWDQQK');
+  </script>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #2563eb;
+      --text: #1a1a1a;
+      --muted: #555;
+      --faint: #888;
+      --bg: #fff;
+      --surface: #f7f7f7;
+      --border: #e5e5e5;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 3.5rem 2rem 6rem;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header { margin-bottom: 2.8rem; }
+
+    .header-inner {
+      display: flex;
+      gap: 1.8rem;
+      align-items: flex-start;
+    }
+
+    .avatar {
+      flex-shrink: 0;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      order: 2;
+    }
+
+    .header-text { flex: 1; order: 1; }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.25rem;
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .bio {
+      color: #333;
+      margin-bottom: 0.75rem;
+      max-width: 780px;
+    }
+
+    .contact-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 1.1rem;
+      margin-top: 1.3rem;
+    }
+
+    .contact-links a {
+      font-size: 0.875rem;
+      color: var(--muted);
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .contact-links a:hover {
+      color: var(--text);
+      border-color: var(--text);
+      text-decoration: none;
+    }
+
+    /* ── Section wrapper ─────────────────────────────── */
+    section { margin-bottom: 3rem; }
+
+    section > h2 {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 1.3rem;
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Publications ────────────────────────────────── */
+    .pub-list { display: flex; flex-direction: column; gap: 1.6rem; }
+
+    .pub {
+      display: grid;
+      grid-template-columns: 16rem minmax(0, 1fr);
+      gap: 0 1rem;
+      align-items: start;
+    }
+
+    .pub-preview {
+      display: block;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+
+    .pub-preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .pub-body { min-width: 0; }
+
+    .pub-title {
+      font-weight: 600;
+      font-size: 0.93rem;
+      color: var(--text);
+      margin-bottom: 0.18rem;
+      line-height: 1.4;
+    }
+
+    .pub-authors {
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-bottom: 0.15rem;
+    }
+
+    .pub-authors strong { color: var(--text); font-weight: 600; }
+
+    .pub-venue {
+      font-size: 0.8rem;
+      color: var(--faint);
+      font-style: italic;
+      margin-bottom: 0.45rem;
+    }
+
+    .pub-award {
+      color: #9a6700;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .pub-highlight {
+      margin: 0.35rem 0 0.55rem;
+      padding-left: 0.75rem;
+      border-left: 2px solid var(--border);
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .pub-note {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin: -0.2rem 0 0.55rem;
+    }
+
+    .pub-links { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.13rem 0.5rem;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: opacity 0.15s;
+    }
+    .badge:hover { opacity: 0.75; text-decoration: none; }
+    .badge.pdf   { background: #fef9ec; border-color: #f5d77a; color: #7c5a00; }
+    .badge.code  { background: #edfaf4; border-color: #7ae0b0; color: #0a6040; }
+    .badge.arxiv { background: #f0eeff; border-color: #c4b5fd; color: #4c2ea0; }
+    .badge.slides { background: #eef6ff; border-color: #93c5fd; color: #1d4ed8; }
+    .badge.talk  { background: #fff0f0; border-color: #fca5a5; color: #991b1b; }
+
+    /* ── News ────────────────────────────────────────── */
+    .news-list { display: flex; flex-direction: column; gap: 0.7rem; }
+
+    .news-item {
+      display: grid;
+      grid-template-columns: 4.2rem 1fr;
+      gap: 0 1rem;
+    }
+
+    .news-date {
+      color: var(--faint);
+      font-size: 0.78rem;
+      text-align: right;
+      padding-top: 0.05rem;
+    }
+
+    .news-text {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    /* ── Projects ────────────────────────────────────── */
+    .project-group { margin-bottom: 1.8rem; }
+
+    .project-group:last-child { margin-bottom: 0; }
+
+    .project-group > h3 {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #aaa;
+      margin-bottom: 0.8rem;
+    }
+
+    .project-list { display: flex; flex-direction: column; gap: 0.65rem; }
+
+    .project-group-intro {
+      margin: -0.2rem 0 0.75rem;
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    .project {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .project-name {
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    .project-name a { color: var(--text); }
+    .project-name a:hover { color: var(--accent); text-decoration: none; }
+
+    .project-desc {
+      font-size: 0.83rem;
+      color: var(--muted);
+    }
+
+    /* ── Footer ──────────────────────────────────────── */
+    footer {
+      margin-top: 3rem;
+      font-size: 0.78rem;
+      color: #bbb;
+    }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (max-width: 700px) {
+      .pub { grid-template-columns: 1fr; row-gap: 0.65rem; }
+      .pub-preview, .pub-body { grid-column: 1; }
+    }
+
+    @media (max-width: 520px) {
+      .container { padding: 2rem 1.2rem 4rem; }
+      .header-inner { flex-direction: column; gap: 1rem; }
+      .avatar { width: 80px; height: 80px; }
+      header h1 { font-size: 1.6rem; }
+      .news-item { grid-template-columns: 1fr; }
+      .news-date { text-align: left; margin-bottom: 0.1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="header-inner">
+        <img class="avatar" src="yufu.png" alt="Yu-Fu Fu">
+        <div class="header-text">
+      <h1>Yu-Fu Fu</h1>
+      <p class="tagline">
+        PhD Candidate &mdash; Georgia Institute of Technology &middot;
+        <a href="http://gts3.org/">SSLab</a>
+      </p>
+      <p class="bio">
+        I build vulnerability discovery and formal verification systems, with and without LLMs.
+        My work includes <strong>CRSBench</strong>, a large-scale AI Cyber Reasoning System evaluation platform
+        running 2,000+ CPU campaigns on GCP that found <strong>14 real 0-days</strong> (3 acknowledged upstream);
+        <strong>OSS-CRS</strong>, an OpenSSF sandbox project that found <strong>7 additional 0-days</strong> using the AIxCC-winning CRS;
+        and <strong>autofz</strong>, my first-author USENIX Security 2023 meta-fuzzer that composes existing fuzzers at runtime from per-workload feedback, beating collaborative fuzzing on 19 of 20 benchmarks and finding 152% more bugs than individual fuzzers.
+        I also work on formal verification: CryptoLine-based verification of Curve25519 ladder-step and crypto field/group code (CCS);
+        Coq-certified verification infrastructure for CryptoLine and SMT bit-vectors (CAV);
+        and LLM-based specification generation for Move smart contracts (ASE 2025).
+        I am advised by <a href="http://taesoo.kim/">Prof. Taesoo Kim</a> at <a href="http://gts3.org/">SSLab</a>.
+      </p>
+      <p class="bio">
+        Contributed security benchmark creation to <strong>Team Atlanta</strong>, DARPA AIxCC winner ($4M prize).
+        3&times; DEFCON CTF finalist (2nd, 4th, 12th).
+      </p>
+      <nav class="contact-links">
+        <a href="mailto:yufu@yfu.tw">Email</a>
+        <a href="https://github.com/fuyu0425">GitHub</a>
+        <a href="https://scholar.google.com/citations?user=-XhMvLYAAAAJ">Google Scholar</a>
+        <a href="https://twitter.com/fuyu0425_en">Twitter</a>
+        <a href="https://www.linkedin.com/in/fuyufu/">LinkedIn</a>
+        <a href="blog/">Blog</a>
+      </nav>
+        </div><!-- .header-text -->
+      </div><!-- .header-inner -->
+    </header>
+
+    <!-- ── News ─────────────────────────────────────── -->
+    <section id="news">
+      <h2>News</h2>
+      <div class="news-list">
+        <div class="news-item">
+          <div class="news-date">Aug 2026</div>
+          <div class="news-text">
+            Our <a href="https://www.usenix.org/conference/usenixsecurity26/presentation/zhang-cen">AIxCC SoK paper</a>
+            received the 🏆 Distinguished Paper Award Runner-Up honor at USENIX Security 2026.
+          </div>
+        </div>
+        <div class="news-item">
+          <div class="news-date">Jul 2026</div>
+          <div class="news-text">
+            Wrote <a href="blog/en/autofz-revisited/">The Control Plane Was the Point: Revisiting autofz in the LLM Era</a>,
+            a retrospective on fuzzer orchestration and agentic security systems.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Publications ─────────────────────────────── -->
+    <section id="publications">
+      <h2>Publications</h2>
+      <div class="pub-list">
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/crsbench.png" alt="CRSBench benchmark construction, distributed execution, and verification pipeline" width="824" height="347" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">CRSBench: Realistic End-to-End Evaluation of Cyber Reasoning Systems</div>
+            <div class="pub-authors">
+              <strong>Yu-Fu Fu</strong>*, Youngjoon Kim*, Dongkwan Kim*, et al., Taesoo Kim
+              &nbsp;<span style="font-style:italic;font-size:0.8rem">(* co-first)</span>
+            </div>
+            <div class="pub-venue">Under Review</div>
+            <blockquote class="pub-highlight">
+              Co-led the Team Atlanta benchmark/discovery platform and led its integration with OSS-CRS's standardized execution interface; distributed campaigns across 2,000+ GCP CPUs covered 124 benchmarks, 82 OSS projects, and 315 CPVs, finding 14 real 0-days.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge" href="https://oss-crs.openssf.org/crsbench">Site</a>
+              <a class="badge code" href="https://github.com/sslab-gatech/CRSBench">Code</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/aixcc-sok.png" alt="DARPA AIxCC final competition workflow" width="469" height="213" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">SoK: DARPA's AI Cyber Challenge (AIxCC): Competition Design, Architectures, and Lessons Learned</div>
+            <div class="pub-authors">Cen Zhang, Younggi Park, Fabian Fleischer, <strong>Yu-Fu Fu</strong>, et al., Taesoo Kim</div>
+            <div class="pub-venue">USENIX Security 2026</div>
+            <div class="pub-award">🏆 Distinguished Paper Award Runner-Up</div>
+            <blockquote class="pub-highlight">
+              Led the paper's patch-generation section and co-analyzed all 7 finalist CRSs across architectures, vulnerability discovery, patching, and competition lessons.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge pdf" href="papers/aixcc-sok.pdf">PDF</a>
+              <a class="badge arxiv" href="https://arxiv.org/abs/2602.07666">arXiv</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/oss-crs.png" alt="OSS-CRS architecture and standardized execution interface" width="743" height="500" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">OSS-CRS: Liberating AIxCC Cyber Reasoning Systems for Real-World Open-Source Security</div>
+            <div class="pub-authors">Andrew Chin, Dongkwan Kim, <strong>Yu-Fu Fu</strong>, et al., Taesoo Kim</div>
+            <div class="pub-venue">WOOT 2026</div>
+            <blockquote class="pub-highlight">
+              Led the CRSBench–OSS-CRS integration boundary, connecting realistic evaluation and discovery campaigns to standardized, isolated AIxCC CRS execution; found 7 additional real 0-days.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge" href="https://oss-crs.openssf.org/">Site</a>
+              <a class="badge pdf" href="papers/oss-crs.pdf">PDF</a>
+              <a class="badge code" href="https://github.com/ossf/oss-crs">Code</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/msg.png" alt="MSG static analysis and agentic specification generation workflow" width="785" height="244" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">Agentic Specification Generator for Move Programs</div>
+            <div class="pub-authors"><strong>Yu-Fu Fu</strong>, Meng Xu, Taesoo Kim</div>
+            <div class="pub-venue">ASE 2025</div>
+            <blockquote class="pub-highlight">
+              Built the first automated specification generator for Move, a 7.3k-LoC Rust/GPT system published at ASE 2025. Independently reverse-engineered under-documented Aptos compiler internals, traced source-to-bytecode lowering, and built cross-module dependency analysis with compile-validated selective inlining. Added ClauseGen agents, ensembling, and Move Prover-checked AST mutation to generate verifiable specs for 84% of evaluated Aptos Move functions. Supported by a Sui research gift.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge pdf" href="papers/move-spec-gen.pdf">PDF</a>
+              <a class="badge slides" href="slides/msg-slides.pdf">Slides</a>
+              <a class="badge code" href="https://github.com/sslab-gatech/MSG">Code</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/autofz.png" alt="autofz preparation and focus phase architecture" width="483" height="329" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">autofz: Automated Fuzzer Composition at Runtime</div>
+            <div class="pub-authors"><strong>Yu-Fu Fu</strong>, Jaehyuk Lee, Taesoo Kim</div>
+            <div class="pub-venue">USENIX Security 2023</div>
+            <blockquote class="pub-highlight">
+              First-author runtime meta-fuzzer for black-box fuzzer composition and resource scheduling; beat collaborative fuzzing on 19 of 20 benchmarks and found +152% bugs over individual fuzzers. Supported by a Cisco Research grant.
+            </blockquote>
+            <p class="pub-note">
+              Retrospective: <a href="blog/en/autofz-revisited/">The Control Plane Was the Point: Revisiting autofz in the LLM Era</a>.
+            </p>
+            <div class="pub-links">
+              <a class="badge pdf" href="papers/autofz.pdf">PDF</a>
+              <a class="badge slides" href="slides/autofz-slides.pdf">Slides</a>
+              <a class="badge code" href="https://github.com/sslab-gatech/autofz">Code</a>
+              <a class="badge" href="https://news.ycombinator.com/item?id=34977319">HN</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/coqcryptoline.png" alt="CoqCryptoLine certified verification architecture" width="469" height="360" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">CoqCryptoLine: A Verified Model Checker with Certified Results</div>
+            <div class="pub-authors">Ming-Hsien Tsai, <strong>Yu-Fu Fu</strong>, Jiaxiang Liu, Xiaomu Shi, Bow-Yaw Wang, Bo-Yin Yang</div>
+            <div class="pub-venue">CAV 2023</div>
+            <blockquote class="pub-highlight">
+              Co-developed a Coq-certified CryptoLine verifier so low-level cryptographic program proofs can be checked independently of the verifier implementation.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge pdf" href="papers/coqcryptoline.pdf">PDF</a>
+              <a class="badge code" href="https://github.com/fmlab-iis/coq-cryptoline">Code</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/certified-abstraction.png" alt="Algebraic abstraction from low-level instructions to polynomial equations" width="692" height="365" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">Certified Verification for Algebraic Abstraction</div>
+            <div class="pub-authors">Ming-Hsien Tsai, <strong>Yu-Fu Fu</strong>, Jiaxiang Liu, Xiaomu Shi, Bow-Yaw Wang, Bo-Yin Yang</div>
+            <div class="pub-venue">CAV 2023</div>
+            <blockquote class="pub-highlight">
+              Co-developed certified algebraic abstraction for bit-vector verification, reducing trusted reasoning in scalable cryptographic program proofs.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge pdf" href="papers/certifed-abstract.pdf">PDF</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/coqqfbv.png" alt="Certified SMT bit-vector solver workflow" width="671" height="157" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">CoqQFBV: A Scalable Certified SMT Quantifier-Free Bit-Vector Solver</div>
+            <div class="pub-authors">Xiaomu Shi, <strong>Yu-Fu Fu</strong>, Jiaxiang Liu, Ming-Hsien Tsai, Bow-Yaw Wang, Bo-Yin Yang</div>
+            <div class="pub-venue">CAV 2021</div>
+            <blockquote class="pub-highlight">
+              Co-developed a scalable Coq/SSReflect-certified QF_BV solver, providing machine-checkable SMT bit-vector reasoning for low-level verification.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge pdf" href="papers/cav21-coq-qfbv.pdf">PDF</a>
+              <a class="badge code" href="https://github.com/fmlab-iis/coq-qfbv">Code</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub">
+          <div class="pub-preview">
+            <img src="images/publications/typed-cryptoline.png" alt="GCC plugin workflow for generating and verifying CryptoLine programs" width="907" height="511" loading="lazy" decoding="async">
+          </div>
+          <div class="pub-body">
+            <div class="pub-title">Signed Cryptographic Program Verification with Typed CryptoLine</div>
+            <div class="pub-authors"><strong>Yu-Fu Fu</strong>, Jiaxiang Liu, Xiaomu Shi, Ming-Hsien Tsai, Bow-Yaw Wang, Bo-Yin Yang</div>
+            <div class="pub-venue">ACM CCS 2019</div>
+            <blockquote class="pub-highlight">
+              First-author work extending CryptoLine with signed arithmetic and GCC GIMPLE translation; verified Curve25519 ladder-step C in OpenSSL/BoringSSL plus field/group routines using SMT, Singular, and CryptoLine; found a NaCl bug.
+            </blockquote>
+            <div class="pub-links">
+              <a class="badge pdf" href="papers/verify-gcc.pdf">PDF</a>
+              <a class="badge slides" href="slides/ccs19-slide.pdf">Slides</a>
+              <a class="badge code" href="https://github.com/fmlab-iis/gcc2cryptoline">Code</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Publicly Reported / Disclosed Bugs ───────── -->
+    <section id="reported-bugs">
+      <h2>Publicly Reported / Disclosed Bugs</h2>
+      <div class="project-list">
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/jqlang/jq/security/advisories/GHSA-rmpv-jgvr-wpr9">CVE-2026-44777</a>
+          </div>
+          <div class="project-desc">
+            jq stack overflow in module loading on mutual include.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/jqlang/jq/security/advisories/GHSA-3pgx-frr7-3jxp">CVE-2026-47770</a>
+          </div>
+          <div class="project-desc">
+            jq stack overflow in deep structural equality.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/google/nsjail/issues/247">nsjail issue #247</a>
+          </div>
+          <div class="project-desc">
+            proc_rw flag behavior.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/jqlang/jq/issues/3533">jq issue #3533</a>
+          </div>
+          <div class="project-desc">
+            undefined behavior in array index handling for infinite.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/duckdb/duckdb/issues/22325">DuckDB issue #22325</a>
+          </div>
+          <div class="project-desc">
+            Parquet DATA_PAGE_V2 truncated payload reaches delta decoding and triggers an uninitialized heap read.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/apache/logging-log4cxx/issues/639">log4cxx issue #639</a>
+          </div>
+          <div class="project-desc">
+            DOMConfigurator stack overflow while loading crafted XML configuration.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/gpac/gpac/issues/3548">GPAC issue #3548</a>
+          </div>
+          <div class="project-desc">
+            Malformed dac4 config leaves the bitstream unaligned and triggers a later abort.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/zxing/zxing/issues/2065">ZXing issue #2065</a>
+          </div>
+          <div class="project-desc">
+            IllegalStateException in MultiFormatEncodeFuzzer.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/libical/libical/issues/1311">libical issue #1311</a>
+          </div>
+          <div class="project-desc">
+            Stack overflow in vCard parsing on deeply nested VCARD input.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">
+            <a href="https://github.com/wolfSSL/wolfssl/pull/10339">wolfSSL PR #10339</a>
+          </div>
+          <div class="project-desc">
+            Upstream fix for otherName handling in ConfirmNameConstraints.
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-name">NaCl bug report</div>
+          <div class="project-desc">
+            Found and reported a NaCl bug while verifying production cryptographic code.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Software ──────────────────────────────────── -->
+    <section id="software">
+      <h2>Software</h2>
+
+      <div class="project-group">
+        <h3>Research</h3>
+        <div class="project-list">
+
+          <div class="project">
+            <div class="project-name"><a href="https://oss-crs.openssf.org/crsbench">CRSBench</a></div>
+            <div class="project-desc">Team Atlanta CRS benchmark/discovery platform spanning 124 benchmarks, 82 OSS projects, and 315 CPVs</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://oss-crs.openssf.org/">OSS-CRS</a></div>
+            <div class="project-desc">OpenSSF sandbox framework for running AIxCC CRSs on real OSS targets with isolation and standardized harnesses</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/sslab-gatech/MSG">MSG</a></div>
+            <div class="project-desc">Agentic Rust/GPT pipeline over Aptos Move IR with mutation-based coverage for verifier-checkable formal specifications</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/sslab-gatech/autofz">autofz</a></div>
+            <div class="project-desc">Black-box runtime meta-fuzzer for composing existing fuzzers and reallocating resources from per-workload feedback</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/fmlab-iis/coq-cryptoline">coq-cryptoline</a></div>
+            <div class="project-desc">Coq-certified CryptoLine verifier for independently checkable cryptographic program proofs</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/fmlab-iis/coq-qfbv">coq-qfbv</a></div>
+            <div class="project-desc">Coq/SSReflect-certified QF_BV solver for machine-checkable bit-vector reasoning</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/fmlab-iis/gcc2cryptoline">gcc2cryptoline</a></div>
+            <div class="project-desc">GCC GIMPLE-to-CryptoLine translator used with SMT and Singular to verify optimized cryptographic C implementations</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="project-group">
+        <h3>Tools</h3>
+        <p class="project-group-intro">
+          I develop open-source tools under <a href="https://github.com/Axiweave">Axiweave</a>, my umbrella organization for intelligent developer tooling, and Emacs packages under <a href="https://github.com/orgs/emacs-guru">emacs-guru</a>.
+        </p>
+        <div class="project-list">
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/Axiweave/claude-code-ide.el">claude-code-ide.el</a></div>
+            <div class="project-desc">Project-aware Emacs IDE integration for Claude Code, Codex, OpenCode, Pi, and Oh My Pi</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/Axiweave/codex-as">codex-as</a></div>
+            <div class="project-desc">Run Codex under saved auth/provider profiles without touching config files</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/fuyu0425/keepass-cli-rs">keepass-cli-rs</a></div>
+            <div class="project-desc">KeePass CLI in Rust with Emacs integration</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/fuyu0425/maskedemail-rs">maskedemail-rs</a></div>
+            <div class="project-desc">Fastmail MaskedEmail CLI in Rust with Emacs integration</div>
+          </div>
+
+          <div class="project">
+            <div class="project-name"><a href="https://github.com/fuyu0425/Fastmail-Sieve-Sync">Fastmail-Sieve-Sync</a></div>
+            <div class="project-desc">Sync Fastmail Sieve filter rules from a local file</div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <footer>
+      Last updated: June 2026 &middot; <a href="mailto:yufu@yfu.tw">yufu@yfu.tw</a>
+    </footer>
+
+  </div>
+</body>
+</html>

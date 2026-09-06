@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Control Plane Was the Point: Revisiting autofz in the LLM Era</title>
+<meta name="description" content="A retrospective on autofz, fuzzer orchestration, and how the idea connects to CRS and agent systems." />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" href="../../static/blog.css">
+<link rel="icon" type="image/png" href="../../static/favicon.png">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GG2TSWDQQK"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-GG2TSWDQQK');
+</script>
+</head>
+<body>
+<div id="preamble" class="status">
+<header class="site-header"><a class="site-title" href="/">Yu-Fu Fu</a><nav class="site-nav"><a href="/blog/" data-blog-link data-simplified-href="/blog/zh-Hant/?script=Hans">Blog</a><label class="language-picker ignore-opencc"><span class="language-picker-icon" aria-hidden="true">A文</span><select class="language-select" aria-label="Select language" onchange="if (this.value) location=this.value"><option value="" selected>English</option><option value="/blog/zh-Hant/">繁體中文</option><option value="/blog/zh-Hant/?script=Hans">简体中文</option></select></label></nav></header>
+</div>
+<div id="content" class="content">
+<header>
+<h1 class="title">The Control Plane Was the Point: Revisiting autofz in the LLM Era</h1>
+</header><div id="outline-container-orgcc4f587" class="outline-2">
+<h2 id="orgcc4f587">Preface</h2>
+<div class="outline-text-2" id="text-orgcc4f587">
+<p>
+autofz is a meta-fuzzer: a runtime orchestrator for existing fuzzers. I
+developed it during the first few years of my PhD, and it was accepted to
+USENIX Security 2023. The <a href="/papers/autofz.pdf">paper</a> and <a href="https://github.com/sslab-gatech/autofz">GitHub repository</a> are both public.
+</p>
+
+<p>
+A few years later, autofz is not one of the most cited fuzzing papers, but its
+control-plane framing has aged better than I expected.
+</p>
+
+<p>
+I want to revisit autofz now because its core question feels more relevant than
+its original fuzzing context: when you have many imperfect workers, how should a
+system spend a fixed budget among them?
+</p>
+
+<p>
+In 2023, the workers were fuzzers. Today, in CRS and LLM-agent systems, the
+workers may be fuzzers, static analyzers, code agents, patch generators,
+validators, or model variants. The surface has changed, but the control-plane
+question is similar: which worker should run, what evidence should be shared,
+when should the system switch direction, and when should it stop?
+</p>
+
+<p>
+This matters more as security capability becomes cheaper and more widely
+available. I do not mean that security is solved, or that expert systems no
+longer matter. I mean something narrower: producing plausible bug candidates is
+becoming easier. The harder problem is turning noisy candidate generation into
+reliable evidence, reproducible PoVs, useful patches, and good budget decisions.
+</p>
+
+<p>
+That is why I do not think the last decade of fuzzing research should be treated
+as obsolete. Even when the exact techniques are not reused literally, the field
+has accumulated hard-won lessons about cheap feedback, noisy evaluation,
+evidence sharing, and fixed-budget automation. autofz was one small version of
+that larger orchestration problem.
+</p>
+</div>
+</div>
+<div id="outline-container-org2adca52" class="outline-2">
+<h2 id="org2adca52">Why fuzzer selection is hard</h2>
+<div class="outline-text-2" id="text-org2adca52">
+<p>
+The initial observation behind autofz was simple: no single fuzzer is always the
+best fuzzer. The paper made this concrete with four observations.
+</p>
+
+<p>
+First, there is no universal fuzzer. Different fuzzers make different tradeoffs
+in mutation strategy, scheduling, instrumentation, seed management, and search
+pressure. In the paper&rsquo;s motivating example, LearnAFL performed best on ffmpeg,
+but dropped to sixth place on exiv2. RedQueen also outperformed Radamsa by more
+than 10x on exiv2 under the same resource budget. That kind of target sensitivity
+is exactly why &ldquo;just use the best fuzzer&rdquo; is not a satisfying operational
+answer.
+</p>
+
+<p>
+Second, the best fuzzer can change during the same campaign. We called this rank
+inversion. On exiv2, Angora made strong early progress, but LAF-Intel and
+RedQueen caught up after roughly two hours. Later, another inversion happened
+between LAF-Intel and RedQueen. A static decision made at the beginning would
+miss that change.
+</p>
+
+<p>
+Third, equal resource allocation is wasteful. Collaborative fuzzing can improve
+over a single fuzzer by sharing seeds, but if every fuzzer receives the same CPU
+budget forever, the system still spends too much time on workers that are not
+currently useful.
+</p>
+
+<p>
+Fourth, fuzzing randomness makes offline decisions fragile. Even if an expert
+finds a good combination for one benchmark run, that guidance may not reproduce
+for the next workload, the next seed corpus, or even another run of the same
+target. The selection burden does not disappear; it just moves into benchmark
+selection, training data, or manual tuning.
+</p>
+
+<p>
+This was the practical problem autofz tried to remove. A user should be able to
+provide a pool of available fuzzers and let the system decide which ones deserve
+the current budget.
+</p>
+
+<figure>
+  <img class="blog-figure" loading="lazy" src="/blog/static/autofz-vs-individual-fuzzers.png" alt="autofz compared with individual fuzzers across UNIFUZZ and FTS targets">
+  <figcaption>autofz compared with individual fuzzers such as AFL, AFLFast, Angora, QSYM, RedQueen, and others. The paper's point was not that individual fuzzers are weak; it was that a runtime composition layer can exploit whichever fuzzer is useful for the current target and phase.</figcaption>
+</figure>
+</div>
+</div>
+<div id="outline-container-orgd633df6" class="outline-2">
+<h2 id="orgd633df6">How autofz works</h2>
+<div class="outline-text-2" id="text-orgd633df6">
+<p>
+autofz does not implement a new fuzzing algorithm. It runs existing fuzzers and
+adds a control plane above them.
+</p>
+
+<p>
+The control loop has two phases. In the preparation phase, autofz gives baseline
+fuzzers a short, fair chance to run and observes their progress. Because fuzzers
+use different internal feedback, autofz maps their interesting inputs back to a
+common AFL bitmap view. That gives the orchestrator a unified way to compare
+runtime trends.
+</p>
+
+<p>
+The second phase is the focus phase. autofz converts the observed trend into a
+resource allocation decision. If one fuzzer is clearly ahead, autofz can give
+the next budget window to that fuzzer. If several fuzzers look useful, it can
+distribute resources proportionally. Seeds are synchronized across fuzzers so
+that one worker&rsquo;s discovery can become another worker&rsquo;s starting point.
+</p>
+
+<p>
+Then the system repeats. It does not assume that the best fuzzer for the previous
+window is still the best fuzzer for the next one.
+</p>
+
+<figure>
+  <img class="blog-figure" loading="lazy" src="/blog/static/autofz-workflow.png" alt="autofz workflow with preparation and focus phases">
+  <figcaption>Paper Figure 2: autofz alternates between preparation and focus phases. It measures fuzzer trends, converts them into resource allocation, and then spends the next window on the selected fuzzers.</figcaption>
+</figure>
+
+<p>
+The important phrase from the paper is &ldquo;per workload, not per program.&rdquo; A
+program is not one static search problem. As fuzzing progresses, the remaining
+branches, useful seeds, and bottlenecks change. autofz tries to react to that
+runtime workload instead of committing to one fuzzer set for the whole campaign.
+</p>
+</div>
+</div>
+<div id="outline-container-org9947b55" class="outline-2">
+<h2 id="org9947b55">The part that took time: making the decisions defensible</h2>
+<div class="outline-text-2" id="text-org9947b55">
+<p>
+The first working prototype beat EnFuzz quickly. Turning that prototype into a
+paper took much longer because the obvious reviewer question was not &ldquo;does it
+win once?&rdquo; It was &ldquo;are the scheduling decisions actually good?&rdquo;
+</p>
+
+<p>
+That is why we added the evaluation of autofz&rsquo;s decisions. For each round, we
+recorded the point right after the preparation phase and restored the campaign
+to that snapshot many times. Then we compared autofz&rsquo;s resource allocation
+against synthetic decisions that gave the whole focus-phase budget to one
+baseline fuzzer at a time. This was a way to ask a counterfactual question:
+given the same starting corpus and the same focus-phase time budget, was
+autofz&rsquo;s chosen allocation competitive with the obvious alternatives?
+</p>
+
+<p>
+The answer was mostly yes, but with useful caveats. On libarchive, autofz&rsquo;s
+decision ranked first in eight of 14 rounds and had an average rank of 2.64. On
+exiv2, it ranked first in four of 15 rounds and averaged 3.5. That was enough to
+support the core claim: trends observed during preparation often remain useful
+for the following focus phase.
+</p>
+
+<p>
+The caveats mattered for the paper. When coverage saturates, the choice of
+fuzzer matters less because no allocation can make much progress. On exiv2,
+after round 4, different decisions produced very small coverage differences; in
+one late round, the gap between the best and worst decision was only 0.07%
+bitmap density. Fuzzing randomness also adds noise even when the comparison
+starts from the same snapshot. Seed synchronization can further change the next
+trend: a fuzzer that was not strongest during preparation may become stronger
+after another fuzzer discovers and shares inputs that unblock it.
+</p>
+
+<p>
+This is the part I remember as the real engineering/research gap between a demo
+and a paper. The prototype showed that orchestration could help. The paper had
+to explain why a particular scheduling algorithm was reasonable, when its
+decisions were reliable, and when the signal became weak. We also had to play
+with the hyperparameters around preparation and focus phases: how long to
+measure, how quickly to early-exit preparation, how much budget to spend on
+evaluation instead of exploitation, and how often to revisit the decision. Those
+details are not glamorous, but they decide whether a meta-fuzzer is actually
+useful or just lucky on a benchmark run.
+</p>
+</div>
+</div>
+<div id="outline-container-org1524388" class="outline-2">
+<h2 id="org1524388">Timeline for autofz: from idea to paper acceptance</h2>
+<div class="outline-text-2" id="text-org1524388">
+<ul class="org-ul">
+<li>Initial idea: around November 2020, though I do not remember the exact date.</li>
+<li>First working prototype beating EnFuzz: around December 2020.</li>
+<li>NDSS 2023: rejected after reaching the second round; it was close. May 2022.</li>
+<li>IEEE S&amp;P 2023: early rejection.</li>
+<li>USENIX Security 2023: minor revision in January 2023, then accepted.</li>
+</ul>
+
+<p>
+It took much more than a working prototype to turn autofz into a publishable
+paper, especially while I was still taking courses. In fuzzing research, beating
+the baseline is not enough. The hard part is explaining why the system wins,
+when it wins, and what mechanism actually matters.
+</p>
+
+<p>
+That was especially true for autofz because it is a meta-fuzzer with many moving
+parts: the scheduler, the individual fuzzers, seed synchronization, benchmark
+setup, and resource allocation can all affect the final result.
+</p>
+</div>
+</div>
+<div id="outline-container-orge1be1dc" class="outline-2">
+<h2 id="orge1be1dc">Previous work: static ensembles vs runtime orchestration</h2>
+<div class="outline-text-2" id="text-orge1be1dc">
+</div>
+<div id="outline-container-org601b11f" class="outline-3">
+<h3 id="org601b11f">EnFuzz</h3>
+<div class="outline-text-3" id="text-org601b11f">
+<p>
+EnFuzz was the main collaborative fuzzing baseline we compared against in the
+early prototype. It ensembles multiple fuzzers and lets them share seeds. That
+is already a useful idea: different fuzzers can benefit from each other&rsquo;s
+discoveries.
+</p>
+
+<p>
+The limitation is that seed sharing alone is not the whole composition problem.
+If all fuzzers receive roughly fixed or equal resources, the system still does
+not answer which fuzzer deserves more CPU at a given moment. In other words,
+EnFuzz is collaborative, but its resource allocation is still mostly static.
+</p>
+
+<p>
+autofz keeps the useful part, seed synchronization, but adds runtime scheduling
+on top. It treats fuzzer selection and resource allocation as first-class
+problems.
+</p>
+</div>
+</div>
+<div id="outline-container-orga770ae0" class="outline-3">
+<h3 id="orga770ae0">CUPID</h3>
+<div class="outline-text-3" id="text-orga770ae0">
+<p>
+CUPID is another important line of work because it also focuses on combining
+fuzzers. The difference is when and how the selection decision is made. CUPID
+uses offline analysis and a training set to predict target-independent fuzzer
+combinations. That means the selected ensemble is still static during the
+campaign.
+</p>
+
+<p>
+The paper&rsquo;s Table 1 summarized the difference like this:
+</p>
+
+<table>
+
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-left">
+
+<col  class="org-left">
+
+<col  class="org-left">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Property</th>
+<th scope="col" class="org-left">EnFuzz</th>
+<th scope="col" class="org-left">CUPID</th>
+<th scope="col" class="org-left">autofz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Number of selected fuzzers</td>
+<td class="org-left">user-configured</td>
+<td class="org-left">user-configured</td>
+<td class="org-left">automatic</td>
+</tr>
+
+<tr>
+<td class="org-left">Typical selected fuzzer set</td>
+<td class="org-left">2-4</td>
+<td class="org-left">2-4</td>
+<td class="org-left">1-11</td>
+</tr>
+
+<tr>
+<td class="org-left">Switches fuzzers at runtime</td>
+<td class="org-left">no</td>
+<td class="org-left">no</td>
+<td class="org-left">yes</td>
+</tr>
+
+<tr>
+<td class="org-left">Requires prior knowledge</td>
+<td class="org-left">yes</td>
+<td class="org-left">yes</td>
+<td class="org-left">no</td>
+</tr>
+
+<tr>
+<td class="org-left">Requires target-specific pretraining</td>
+<td class="org-left">no</td>
+<td class="org-left">partial</td>
+<td class="org-left">no</td>
+</tr>
+
+<tr>
+<td class="org-left">Cost of adding new fuzzers</td>
+<td class="org-left">high</td>
+<td class="org-left">high</td>
+<td class="org-left">low</td>
+</tr>
+
+<tr>
+<td class="org-left">Resource allocation</td>
+<td class="org-left">static</td>
+<td class="org-left">static</td>
+<td class="org-left">dynamic</td>
+</tr>
+
+<tr>
+<td class="org-left">Resource distribution policy</td>
+<td class="org-left">equal</td>
+<td class="org-left">equal</td>
+<td class="org-left">proportional</td>
+</tr>
+
+<tr>
+<td class="org-left">Adapts to runtime workload</td>
+<td class="org-left">no</td>
+<td class="org-left">no</td>
+<td class="org-left">yes</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+I would now describe this as a distinction between static ensembles and runtime
+orchestration. EnFuzz and CUPID are about choosing a useful group of fuzzers.
+autofz is about repeatedly deciding which workers deserve budget as the workload
+changes.
+</p>
+
+<p>
+The result was not only better coverage. In the paper, autofz outperformed the
+best individual fuzzers in 11 out of 12 benchmarks and beat collaborative
+fuzzing approaches in 19 out of 20 benchmarks. On average, it found 152% more
+bugs than individual fuzzers on UNIFUZZ and FTS, and 415% more bugs than
+collaborative fuzzing on UNIFUZZ.
+</p>
+
+<figure>
+  <img class="blog-figure" loading="lazy" src="/blog/static/autofz-enfuzz-cupid-unifuzz.png" alt="autofz comparison with EnFuzz and CUPID on UNIFUZZ">
+  <figcaption>autofz compared with EnFuzz and CUPID on UNIFUZZ. The interesting part is not just that autofz ran more fuzzers; it used runtime feedback to decide which fuzzers should receive budget.</figcaption>
+</figure>
+
+<figure>
+  <img class="blog-figure" loading="lazy" src="/blog/static/autofz-resource-distribution-exiv2.png" alt="autofz resource allocation snapshot on exiv2">
+  <figcaption>A resource-allocation snapshot from the paper. autofz can spend early budget on one strong fuzzer, then later distribute resources when several fuzzers show useful trends.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div id="outline-container-orga56630d" class="outline-2">
+<h2 id="orga56630d">Low-level technique composition vs. high-level fuzzer orchestration</h2>
+<div class="outline-text-2" id="text-orga56630d">
+<p>
+One common question during reviews, and later on Hacker News after the arXiv
+version, was how autofz differs from AFL++. I think the better framing is to
+separate two levels of composition.
+</p>
+
+<p>
+AFL++ is an excellent example of low-level composition. It combines many
+compatible fuzzing techniques inside one strong fuzzer implementation. autofz
+does not compete with that layer. It can use AFL++ as one worker in the pool.
+</p>
+
+<p>
+The distinction is that &ldquo;many techniques in one fuzzer&rdquo; is not the same as
+&ldquo;orchestrating many workers.&rdquo; Some features compose cleanly, such as AFL++&rsquo;s
+CmpLog support. Other choices are mutually exclusive per process, such as power
+schedules selected with <code>-p</code>. Other workers, such as QSYM and Angora, come with
+their own instrumentation and runtime assumptions.
+</p>
+
+<p>
+So the two layers are complementary. AFL++ strengthens an individual fuzzer.
+EnFuzz and autofz work at a higher level: run multiple fuzzers as separate
+workers, share useful artifacts, and decide which worker deserves resources.
+autofz&rsquo;s contribution is in that higher-level orchestration problem: given
+several existing fuzzers, which ones should run, when should the system switch,
+and how much resource should each receive?
+</p>
+
+<p>
+This distinction is important because both approaches can coexist. A better
+individual fuzzer makes the pool stronger. A better orchestrator decides how to
+use that pool under a fixed budget.
+</p>
+</div>
+</div>
+<div id="outline-container-org0b79f70" class="outline-2">
+<h2 id="org0b79f70">Adding fuzzers is not the same as orchestrating well</h2>
+<div class="outline-text-2" id="text-org0b79f70">
+<p>
+The same trap shows up in multi-agent systems. Adding more agents can increase
+diversity, but it also introduces context loss, message-passing overhead, and
+coordination burden. If the orchestrator cannot decide which agent should own
+the next step, what evidence should be compressed and shared, and when a thread
+should be abandoned, the system can spend most of its budget moving information
+around instead of solving the task.
+</p>
+
+<p>
+Fuzzer orchestration has the same shape. Adding more fuzzers is not free: every
+extra fuzzer creates more measurement cost, more synchronization traffic, and
+more ways to waste budget on a worker that is currently unhelpful.
+</p>
+
+<p>
+The paper evaluated this with an autofz variant that allocates resources equally.
+The gap between autofz and the equal-allocation variant became clearer as the
+pool changed, especially when good and bad fuzzers were mixed. In one case study,
+autofz spent only a small fraction of focus-phase resources on poor-performing
+fuzzers and shifted most of the budget toward RedQueen, LAF-Intel, and libFuzzer.
+</p>
+
+<p>
+That is the point of orchestration: diversity helps only if the control plane can
+avoid paying full price for every option all the time.
+</p>
+
+<figure>
+  <img class="blog-figure" loading="lazy" src="/blog/static/autofz-fuzzer-count-libarchive.png" alt="autofz evaluation with different numbers of fuzzers on libarchive">
+  <figcaption>Adding more fuzzers is not automatically better. The useful question is how the orchestration layer allocates budget as the pool changes.</figcaption>
+</figure>
+</div>
+</div>
+<div id="outline-container-orge28173f" class="outline-2">
+<h2 id="orge28173f">Inspiration for later works</h2>
+<div class="outline-text-2" id="text-orge28173f">
+<p>
+Looking back, the part of autofz that still feels most reusable is not any
+specific fuzzing heuristic. It is the control-plane idea: watch heterogeneous
+workers at runtime, compare their marginal progress, and move budget toward the
+workers that currently look useful.
+</p>
+
+<p>
+<a href="https://github.com/whexy/BandFuzz">BandFuzz</a> from Team 42-b3yond-6ug explores a related direction with deep
+learning and multi-armed bandits. A similar bandit-style idea also appears in
+<a href="https://github.com/hyeonminmo/RCFuzzer">RCFuzzer</a>, a recommendation-based collaborative fuzzer from Hanyang University
+that builds on autofz.
+</p>
+
+<p>
+The same orchestration idea also shows up in our own CRS, Atlantis, from Team
+Atlanta. Atlantis ensembles three CRSs: a C CRS, a Java CRS, and a multilingual
+CRS, which in practice mainly means C and Java. More technical details, reports,
+and publications are available from <a href="https://team-atlanta.github.io/">Team Atlanta</a>.
+</p>
+</div>
+</div>
+<div id="outline-container-org41cf309" class="outline-2">
+<h2 id="org41cf309">From fuzzer orchestration to agent orchestration</h2>
+<div class="outline-text-2" id="text-org41cf309">
+<p>
+The LLM-era analogy is not that agents are fuzzers. The analogy is that both
+systems become hard when we stop relying on one worker and start coordinating
+many heterogeneous workers under a fixed budget.
+</p>
+
+<p>
+In autofz, the workers were fuzzers. The shared artifacts were seeds. The cheap
+feedback signal was coverage. The scheduler watched runtime trends and moved CPU
+toward fuzzers that looked useful for the current workload.
+</p>
+
+<p>
+In CRS and agentic security systems, the workers may be fuzzers, static
+analyzers, code-reasoning agents, harness generators, patch generators, and
+validators. The shared artifacts are richer: suspicious commits, static
+warnings, crashes, generated tests, PoVs, patches, negative evidence, and
+reviewer decisions. The budget is also richer: CPU time, token cost, wall-clock
+latency, and human attention.
+</p>
+
+<table>
+
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-left">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">autofz world</th>
+<th scope="col" class="org-left">CRS / agentic security world</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Fuzzer</td>
+<td class="org-left">Agent, analyzer, harness generator, patcher, validator</td>
+</tr>
+
+<tr>
+<td class="org-left">Seed corpus</td>
+<td class="org-left">Test cases, crashes, PoVs, patches, notes</td>
+</tr>
+
+<tr>
+<td class="org-left">AFL bitmap trend</td>
+<td class="org-left">Shared progress / evidence signal</td>
+</tr>
+
+<tr>
+<td class="org-left">Preparation phase</td>
+<td class="org-left">Exploration / probing</td>
+</tr>
+
+<tr>
+<td class="org-left">Focus phase</td>
+<td class="org-left">Budgeted deepening</td>
+</tr>
+
+<tr>
+<td class="org-left">Seed synchronization</td>
+<td class="org-left">Evidence ledger / blackboard</td>
+</tr>
+
+<tr>
+<td class="org-left">Rank inversion</td>
+<td class="org-left">Best worker changes as context changes</td>
+</tr>
+
+<tr>
+<td class="org-left">CPU budget</td>
+<td class="org-left">CPU + token + wall-clock + reviewer budget</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+That makes the orchestration problem harder, not easier. More workers increase
+diversity, but they also increase noise. If the system cannot decide which
+worker should own the next step, what evidence should be compressed and shared,
+and when a direction should be abandoned, it can spend most of its budget moving
+information around instead of making progress.
+</p>
+
+<p>
+The lesson I would carry from autofz is not a particular scheduling heuristic.
+It is the need for a control plane: a layer that normalizes feedback from
+heterogeneous workers, compares marginal progress, shares useful artifacts, and
+moves budget toward the workers that currently deserve it.
+</p>
+</div>
+</div>
+<div id="outline-container-org83c8418" class="outline-2">
+<h2 id="org83c8418">What does not transfer directly</h2>
+<div class="outline-text-2" id="text-org83c8418">
+<p>
+The analogy also has limits. autofz had a relatively cheap common signal:
+coverage trends mapped into a shared bitmap view. Agentic security systems do
+not get such a clean signal for free. A model&rsquo;s confidence, a static-analysis
+warning, a failing test, and a patch diff are not naturally comparable.
+</p>
+
+<p>
+The lesson from autofz is therefore not &ldquo;use the same scheduler.&rdquo; The lesson is
+that orchestration only works after heterogeneous workers expose evidence in a
+form the control plane can compare.
+</p>
+</div>
+</div>
+<div id="outline-container-org919b023" class="outline-2">
+<h2 id="org919b023">Final remark: is fuzzing research dead?</h2>
+<div class="outline-text-2" id="text-org919b023">
+<p>
+No. But the role of fuzzing is changing.
+</p>
+
+<p>
+A production vulnerability-discovery system will probably look less like &ldquo;one
+perfect fuzzer&rdquo; and more like a CRS: fuzzing combined with static analysis,
+program understanding, LLM-based reasoning, patch generation, and validation.
+Fuzzing remains valuable because it is one of the cheapest ways to produce
+dynamic evidence. Once a harness exists, CPU-scaled exploration is often much
+cheaper and more repeatable than asking an LLM to invent every input from
+scratch.
+</p>
+
+<p>
+At the same time, recent agentic-security results make it clear that raw
+bug-finding capability is becoming more available. General coding agents can
+already produce useful vulnerability candidates on realistic challenge
+repositories. The <a href="https://www.runsybil.com/post/reproducing-top-results-from-the-aixcc-with-general-access-ai-models-and-600">RunSybil AIxCC reproduction</a> is a good example: general-access
+models did surprisingly well at vulnerability detection, but the remaining hard
+parts were exactly the systems problems: prioritization, false-positive control,
+reproducible PoVs, validated patches, and budget allocation.
+</p>
+
+<p>
+That is why autofz still feels relevant to me. Its specific workers were
+fuzzers, and its feedback signal was coverage, but the deeper problem was a
+control-plane problem: how to coordinate heterogeneous workers under a fixed
+budget.
+</p>
+
+<p>
+The next generation of agentic security systems should borrow the reusable
+lessons from fuzzing research rather than treat it as old work. Not every idea
+needs to survive as a standalone fuzzer technique. The reusable lessons are
+broader: how to build cheap feedback loops, how to evaluate noisy systems, how
+to share evidence across workers, how to compare tools under a fixed budget, and
+how to turn a clever prototype into a reliable system.
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<footer class="site-footer"><a href="https://www.gnu.org/s/emacs/" aria-label="Made with Emacs"><img src="../../static/made-with-emacs.jpeg" width="150" height="44" alt="Made with Emacs"></a></footer>
+</div>
+</body>
+</html>
